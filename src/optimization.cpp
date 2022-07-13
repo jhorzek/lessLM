@@ -60,11 +60,11 @@ public:
 // glmnet optimizer as an example.
 
 // [[Rcpp::export]]
-Rcpp::NumericVector elasticNet(
+Rcpp::List elasticNet(
     const arma::colvec y, 
     arma::mat X,
-    const double alpha,
-    const double lambda
+    const arma::rowvec alpha,
+    const arma::rowvec lambda
 )
 {
   
@@ -88,6 +88,16 @@ Rcpp::NumericVector elasticNet(
   // add the labels to the parameter vector:
   b.names() = bNames;
   
+  // We also have to create a matrix which saves the parameter estimates
+  // for all values of alpha and lambda. 
+  Rcpp::NumericMatrix B(alpha.n_elem*lambda.n_elem, b.length());
+  B.fill(NA_REAL);
+  Rcpp::colnames(B) = bNames;
+  // we also create a matrix to save the corresponding tuning parameter values
+  Rcpp::NumericMatrix tpValues(alpha.n_elem*lambda.n_elem, 2);
+  tpValues.fill(NA_REAL);
+  Rcpp::colnames(tpValues) = Rcpp::StringVector{"alpha", "lambda"};
+  
   // now, it is time to set up the model we defined above
   
   linearRegressionModel linReg(y,X);
@@ -99,8 +109,7 @@ Rcpp::NumericVector elasticNet(
   lessSEM::penaltyRidge ridge;
   // these penalties take tuning parameters of class tuningParametersEnet
   lessSEM::tuningParametersEnet tp;
-  tp.alpha = alpha;
-  tp.lambda = lambda;
+  
   // finally, there is also the weights. The weights vector indicates, which
   // of the parameters is regularized (weight = 1) and which is unregularized 
   // (weight =0). It also allows for adaptive lasso weights (e.g., weight =.0123).
@@ -116,36 +125,57 @@ Rcpp::NumericVector elasticNet(
   lessSEM::controlGLMNET control = lessSEM::controlGlmnetDefault();
   
   control.breakOuter = 1e-5;
-  control.initialHessian = approximateHessian(b,y,X,1e-5);
+  control.breakInner = 1e-5;
+  control.initialHessian = approximateHessian(b,y,X,1e-10);
   
-  // to optimize this model, we have to pass it to
-  // one of the optimizers in lessSEM. These are 
-  // glmnet and ista. We'll use glmnet in the following. The optimizer will
-  // return an object of class fitResults which will have the following fields:
-  // 1) convergence (boolean)
-  // 2) penalizedFit_k -> double with fit values
-  // 3) fits: a vector with the fits of all iterations
-  // 4) parameterValues the final parameter values as an arma::rowvec
-  // 5) Hessian: the BFGS Hessian approximation
+  // now it is time to iterate over all lambda and alpha values:
+  int it = 0;
+  for(int a = 0; a < alpha.n_elem; a++){
+    for(int l = 0; l < lambda.n_elem; l++){
+      
+      // set the tuning parameters
+      tp.alpha = alpha.at(a);
+      tp.lambda = lambda.at(l);
+      
+      tpValues(it,0) = alpha.at(a);
+      tpValues(it,1) = lambda.at(a);
+      
+      // to optimize this model, we have to pass it to
+      // one of the optimizers in lessSEM. These are 
+      // glmnet and ista. We'll use glmnet in the following. The optimizer will
+      // return an object of class fitResults which will have the following fields:
+      // - convergence: boolean indicating if the convergence criterion was met (true) or not (false)
+      // - fit: double with fit values
+      // - fits: a vector with the fits of all iterations
+      // - parameterValues the final parameter values as an arma::rowvec
+      // - Hessian: the BFGS Hessian approximation
+      
+      lessSEM::fitResults lmFit = lessSEM::glmnet(
+        linReg, // the first argument is our model
+        b, // the second are the parameters
+        lasso, // the third is our lasso penalty
+        ridge, // the fourth our ridge penalty
+        tp, // the fifth is our tuning parameter 
+        control // finally, let's fine tune with the control
+      );
+      
+      for(int i = 0; i < b.length(); i++){
+        B(it,i) = lmFit.parameterValues.at(i);
+      }
+      
+      // update Hessian
+      control.initialHessian = approximateHessian(B.row(it),y,X,1e-10);
+      
+      it++;
+    }
+  }
   
-  lessSEM::fitResults lmFit = lessSEM::glmnet(
-    linReg, // the first argument is our model
-    b, // the second are the parameters
-    lasso, // the third is our lasso penalty
-    ridge, // the fourth our ridge penalty
-    tp, // the fifth is our tuning parameter 
-    control // finally, let's fine tune with the control
+  Rcpp::List retList = Rcpp::List::create(
+    Rcpp::Named("B") = B,
+    Rcpp::Named("tuningParameters") = tpValues);
+  return(
+    retList
   );
-  
-  if(lmFit.convergence){
-    Rcpp::Rcout << "Model converged with final fit value "<< lmFit.fit;
-  }
-  
-  for(int i = 0; i < b.length(); i++){
-    b.at(i) = lmFit.parameterValues.at(i);
-  }
-
-  return(b);
 }
 
 

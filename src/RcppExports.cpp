@@ -52,15 +52,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // elasticNet
-Rcpp::NumericVector elasticNet(const arma::colvec y, arma::mat X, const double alpha, const double lambda);
+Rcpp::List elasticNet(const arma::colvec y, arma::mat X, const arma::rowvec alpha, const arma::rowvec lambda);
 RcppExport SEXP _lessLM_elasticNet(SEXP ySEXP, SEXP XSEXP, SEXP alphaSEXP, SEXP lambdaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const arma::colvec >::type y(ySEXP);
     Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
-    Rcpp::traits::input_parameter< const double >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< const double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< const arma::rowvec >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< const arma::rowvec >::type lambda(lambdaSEXP);
     rcpp_result_gen = Rcpp::wrap(elasticNet(y, X, alpha, lambda));
     return rcpp_result_gen;
 END_RCPP

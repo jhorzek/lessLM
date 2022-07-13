@@ -56,15 +56,18 @@ b <- c(rep(1,4),
 y <- X%*%matrix(b,ncol = 1) + rnorm(N,0,.2)
 
 l1 <- elasticNet(y = y,
-                  X = X,
-                  alpha = 1, 
-                  lambda = 1)
-l1
+                 X = X,
+                 alpha = 1, # note: glmnet and lessSEM define 
+                 # the elastic net differently (lessSEM follows lslx and regsem)
+                 # Therefore, you will get different results if you change alpha
+                 # when compared to glmnet
+                 lambda = seq(1,0,-.1))
 
 library(glmnet)
 l2 <- glmnet(x = X, 
              y = y, 
-             lambda = 1,
+             lambda = seq(0,1,.1),
              standardize = FALSE)
-coef(l2)[,1]
+coef(l2)
+t(l1$B)
 ```
