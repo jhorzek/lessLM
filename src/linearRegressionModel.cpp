@@ -31,12 +31,12 @@ arma::rowvec sumSquaredErrorGradients(
 ){
   // note: we want to return our gradients as row-vector; therefore,
   // we have to transpose the resulting column-vector:
-  arma::rowvec gradients = arma::trans(-2.0*X.t() * y + X.t()*X*b);
+  arma::rowvec gradients = arma::trans(-2.0*X.t() * y + 2.0*X.t()*X*b);
   
   // other packages, such as glmnet, scale the sse with 
   // 1/(2*N), where N is the sample size. We will do that here as well
   
-  gradients *= 1.0/(2.0 * y.n_elem);
+  gradients *= (.5/y.n_rows);
   
   return(gradients);
 }
@@ -98,5 +98,5 @@ arma::mat approximateHessian(arma::colvec b, // the parameter vector
   // make symmetric
   hessian = (hessian + arma::trans(hessian))/2.0;
 
-  return(2.0*hessian); // times 2 because we are using .5*(1/N)*sse 
+  return(hessian);
 }

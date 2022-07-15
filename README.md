@@ -4,30 +4,33 @@
 # lessLM
 
 The sole purpose of this package is to demonstrate how the optimizers
-implemented in lessSEM can be used by other packages. To this end, we
-use a fairly simple model: A linear regression of the form
+implemented in [lessSEM](https://github.com/jhorzek/lessSEM) can be used
+by other packages. To this end, we use a fairly simple model: A linear
+regression of the form
 
 ![\\pmb y = \\pmb X \\pmb b + \\pmb\\varepsilon](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;%5Cpmb%20y%20%3D%20%5Cpmb%20X%20%5Cpmb%20b%20%2B%20%5Cpmb%5Cvarepsilon "\pmb y = \pmb X \pmb b + \pmb\varepsilon")
 
 ## Step 1
 
-Install lessSEM from <https://github.com/jhorzek/lessSEM>.
+Install [lessSEM](https://github.com/jhorzek/lessSEM) from
+<https://github.com/jhorzek/lessSEM>.
 
 ## Step 2
 
-Create a new R package which uses RcppArmadillo (e.g., with
-\`\`RcppArmadillo::RcppArmadillo.package.skeleton()’’). Open the
-DESCRIPTION file and add lessSEM to the “LinkingTo” field (see the
-DESCRIPTION file of this package if you are unsure what we are referring
-to). If you already have a package, just add lessSEM to the “LinkingTo”
-field.
+Create a new R package which uses
+[RcppArmadillo](https://github.com/RcppCore/RcppArmadillo) (e.g., with
+`RcppArmadillo::RcppArmadillo.package.skeleton()`). Open the DESCRIPTION
+file and add lessSEM to the “LinkingTo” field (see the DESCRIPTION file
+of this package if you are unsure what we are referring to). If you
+already have a package, just add lessSEM to the “LinkingTo” field.
 
 ## Step 3: Implementing your package
 
 We will assume that you already have a package which implements the
 model that you would like to regularize. Therefore, we will not make use
-of any of the functions and classes defined in lessSEM at this point.
-However, make sure that you have two functions:
+of any of the functions and classes defined in
+[lessSEM](https://github.com/jhorzek/lessSEM) at this point. However,
+make sure that you have two functions:
 
 1)  A function which computes the fit (e.g., -2-log-Likelihood) of your
     model. This function must return a double.
@@ -42,22 +45,41 @@ of the Hessian based on the BFGS procedure. If the initial Hessian is a
 poor substitute for the true Hessian, this optimizer can return wrong
 parameter estimates. To get a reasonable initial Hessian, we therefore
 also implemented this initial Hessian estimation based on the procedure
-used in lavaan.
+used in [lavaan](https://github.com/yrosseel/lavaan).
 
-## Step 4: Linking to lessSEM
+## Step 4: Linking to [lessSEM](https://github.com/jhorzek/lessSEM)
 
 Assuming that our model is set up, we are ready to link everything to
-lessSEM. First, create an new file (we called ours
-src/optimization.cpp). Here, it is important to include the lessSEM.hpp
-headers (see src/optimization.cpp). All further steps necessary to use
-the lessSEM optimizers are outlined in the comments included in the new
-file src/optimization.cpp. Open this file and follow the instructions.
+[lessSEM](https://github.com/jhorzek/lessSEM). First, create an new file
+(we called ours src/optimization.cpp). Here, it is important to include
+the lessSEM.hpp headers (see src/optimization.cpp). All further steps
+necessary to use the [lessSEM](https://github.com/jhorzek/lessSEM)
+optimizers are outlined in the comments included in the new file
+src/optimization.cpp. Open this file and follow the instructions.
+Therein, we implement both, glmnet and ista optimization for the elastic
+net penalty and ista optimization of the scad penalty. If you are
+interested in how the optimization routine is designed, have a look at
+the “The-optimizer-interface” of the
+[lessSEM](https://github.com/jhorzek/lessSEM) package.
 
 ## Step 5: Test your function
+
+### Elastic Net
+
+We will compare our results to those of
+[glmnet](https://github.com/cran/glmnet).
 
 ``` r
 set.seed(123)
 library(lessLM)
+library(Matrix) # we will use the matrix package
+# to print the matrices below in the same sparse format
+# as glmnet or ncvreg
+
+# let's first define a small print function to beautify our results
+printCoefficients <- function(model){
+  print(t(Matrix:::Matrix(model$B, sparse = TRUE)))
+}
 
 # first, we simulate data for our
 # linear regression.
@@ -68,71 +90,144 @@ b <- c(rep(1,4),
        rep(0,6)) # true regression weights
 y <- X%*%matrix(b,ncol = 1) + rnorm(N,0,.2)
 
-l1 <- elasticNet(y = y,
+# define the tuning parameters
+lambda = seq(1,0,length.out = 5)
+
+lasso1 <- lessLM::elasticNet(y = y,
                  X = X,
                  alpha = 1, # note: glmnet and lessSEM define 
                  # the elastic net differently (lessSEM follows lslx and regsem)
                  # Therefore, you will get different results if you change alpha
                  # when compared to glmnet
-                 lambda = seq(1,0,-.1))
+                 lambda = lambda
+                 )
 
+# now, let's use the ista optimizer
+lasso2 <- lessLM::elasticNetIsta(y = y,
+                 X = X,
+                 alpha = 1, # note: glmnet and lessSEM define 
+                 # the elastic net differently (lessSEM follows lslx and regsem)
+                 # Therefore, you will get different results if you change alpha
+                 # when compared to glmnet
+                 lambda = lambda)
+
+# For comparison, we will fit the model with the glmnet package:
 library(glmnet)
-#> Loading required package: Matrix
 #> Loaded glmnet 4.1-4
-l2 <- glmnet(x = X, 
+lassoGlmnet <- glmnet(x = X, 
              y = y, 
-             lambda = seq(0,1,.1),
+             lambda = lambda,
              standardize = FALSE)
-coef(l2)
-#> 11 x 11 sparse Matrix of class "dgCMatrix"
-#>    [[ suppressing 11 column names 's0', 's1', 's2' ... ]]
-#>                                                                           
-#> (Intercept) 0.09341722 0.1016531 0.1160556 0.12462096 0.1134846 0.09911437
-#> V1          .          .         .         .          0.1171166 0.26672659
-#> V2          .          0.0456787 0.1494955 0.25178426 0.3567714 0.46309006
-#> V3          .          .         .         0.04769799 0.1757818 0.30792600
-#> V4          0.06426310 0.1560080 0.2453808 0.33677270 0.4358888 0.53637577
-#> V5          .          .         .         .          .         .         
-#> V6          .          .         .         .          .         .         
-#> V7          .          .         .         .          .         .         
-#> V8          .          .         .         .          .         .         
-#> V9          .          .         .         .          .         .         
-#> V10         .          .         .         .          .         .         
-#>                                                                     
-#> (Intercept) 0.08474437 0.07037437 0.05600437 0.04163437  0.027387180
-#> V1          0.41633553 0.56594447 0.71555342 0.86516236  1.012910134
-#> V2          0.56940931 0.67572857 0.78204782 0.88836707  0.999125705
-#> V3          0.44006956 0.57221313 0.70435670 0.83650026  0.970569587
-#> V4          0.63686264 0.73734950 0.83783637 0.93832324  1.027638033
-#> V5          .          .          .          .           0.014021011
-#> V6          .          .          .          .          -0.007451938
-#> V7          .          .          .          .           0.018592112
-#> V8          .          .          .          .           0.021926877
-#> V9          .          .          .          .          -0.009900589
-#> V10         .          .          .          .           0.027396435
-t(l1$B)
-#>           [,1]       [,2]      [,3]      [,4]      [,5]       [,6]       [,7]
-#> b0  0.09348642 0.10166404 0.1160315 0.1246996 0.1135478 0.09912052 0.08477288
-#> b1  0.00000000 0.00000000 0.0000000 0.0000000 0.1171302 0.26665223 0.41633238
-#> b2  0.00000000 0.04567918 0.1495003 0.2517965 0.3567501 0.46311060 0.56941823
-#> b3  0.00000000 0.00000000 0.0000000 0.0473653 0.1757680 0.30793040 0.44004914
-#> b4  0.06423391 0.15602722 0.2453946 0.3368144 0.4359944 0.53639804 0.63686256
-#> b5  0.00000000 0.00000000 0.0000000 0.0000000 0.0000000 0.00000000 0.00000000
-#> b6  0.00000000 0.00000000 0.0000000 0.0000000 0.0000000 0.00000000 0.00000000
-#> b7  0.00000000 0.00000000 0.0000000 0.0000000 0.0000000 0.00000000 0.00000000
-#> b8  0.00000000 0.00000000 0.0000000 0.0000000 0.0000000 0.00000000 0.00000000
-#> b9  0.00000000 0.00000000 0.0000000 0.0000000 0.0000000 0.00000000 0.00000000
-#> b10 0.00000000 0.00000000 0.0000000 0.0000000 0.0000000 0.00000000 0.00000000
-#>           [,8]       [,9]      [,10]        [,11]
-#> b0  0.07051992 0.05643675 0.04164992  0.027727456
-#> b1  0.56594941 0.71574719 0.86512441  1.012718764
-#> b2  0.67575754 0.78245673 0.88836766  0.998883257
-#> b3  0.57216451 0.70387969 0.83653460  0.970518965
-#> b4  0.73736836 0.83813706 0.93837885  1.027613864
-#> b5  0.00000000 0.00000000 0.00000000  0.013057572
-#> b6  0.00000000 0.00000000 0.00000000 -0.007160196
-#> b7  0.00000000 0.00000000 0.00000000  0.018649256
-#> b8  0.00000000 0.00000000 0.00000000  0.021975303
-#> b9  0.00000000 0.00000000 0.00000000 -0.010585376
-#> b10 0.00000000 0.00000000 0.00000000  0.027377045
+coef(lassoGlmnet)
+#> 11 x 5 sparse Matrix of class "dgCMatrix"
+#>                     s0        s1         s2         s3           s4
+#> (Intercept) 0.09341722 0.1232568 0.09911434 0.06318934  0.027387116
+#> V1          .          .         0.26672666 0.64074904  1.012908797
+#> V2          .          0.2014030 0.46308997 0.72888809  0.999126195
+#> V3          .          .         0.30792610 0.63828503  0.970569484
+#> V4          0.06426310 0.2900672 0.53637578 0.78759295  1.027636504
+#> V5          .          .         .          .           0.014021661
+#> V6          .          .         .          .          -0.007452699
+#> V7          .          .         .          .           0.018591741
+#> V8          .          .         .          .           0.021927486
+#> V9          .          .         .          .          -0.009900790
+#> V10         .          .         .          .           0.027396836
+printCoefficients(lasso1)
+#> 11 x 5 sparse Matrix of class "dgCMatrix"
+#>                                                            
+#> b0  0.09341722 0.1232569 0.09911476 0.06318937  0.027385533
+#> b1  .          .         0.26672667 0.64074899  1.012920749
+#> b2  .          0.2014038 0.46309006 0.72888815  0.999144245
+#> b3  .          .         0.30792583 0.63828488  0.970572559
+#> b4  0.06426310 0.2900671 0.53637563 0.78759294  1.027627004
+#> b5  .          .         .          .           0.014035534
+#> b6  .          .         .          .          -0.007460068
+#> b7  .          .         .          .           0.018590781
+#> b8  .          .         .          .           0.021929316
+#> b9  .          .         .          .          -0.009900092
+#> b10 .          .         .          .           0.027400389
+printCoefficients(lasso2)
+#> 11 x 5 sparse Matrix of class "dgCMatrix"
+#>                                                            
+#> b0  0.09341660 0.1232553 0.09911708 0.06319168  0.027380698
+#> b1  .          .         0.26672763 0.64074985  1.012922529
+#> b2  .          0.2014050 0.46308822 0.72888662  0.999147143
+#> b3  .          .         0.30792723 0.63828598  0.970570230
+#> b4  0.06426509 0.2900689 0.53637334 0.78759086  1.027637648
+#> b5  .          .         .          .           0.014031732
+#> b6  .          .         .          .          -0.007464030
+#> b7  .          .         .          .           0.018593755
+#> b8  .          .         .          .           0.021935357
+#> b9  .          .         .          .          -0.009908269
+#> b10 .          .         .          .           0.027408142
 ```
+
+### Scad
+
+Our functions implementing the scad penalty can be found in
+src/optimization.cpp. We will compare our function to that of
+[ncvreg](https://github.com/pbreheny/ncvreg). Importantly,
+[ncvreg](https://github.com/pbreheny/ncvreg) standardizes the data
+internally. To use exactly the same data set with both packages, we
+apply this standardization first.
+
+``` r
+library(ncvreg)
+X <- ncvreg::std(X)
+attr(X, "center") <- NULL
+attr(X, "scale") <- NULL
+attr(X, "nonsingular") <- NULL
+
+# Now, let's fit our model with the standardized data
+scad1 <- lessLM::scadIsta(y = y, 
+                         X = X, 
+                         theta = 3, 
+                         lambda = lambda)
+
+# for comparison, we use ncvreg
+scadFit <- ncvreg(X = X, 
+                  y = y, 
+                  penalty = "SCAD",
+                  lambda = lambda, 
+                  gamma = 3)
+
+coef(scadFit)
+#>                 1.0000     0.7500     0.5000     0.2500       0.0000
+#> (Intercept) 0.09108943 0.09108943 0.09108943 0.09108943  0.091089427
+#> V1          0.00000000 0.00000000 0.29981954 0.92165519  0.919965025
+#> V2          0.00000000 0.22333999 0.46569726 0.95702779  0.961297111
+#> V3          0.00000000 0.03305662 0.32816203 0.91548202  0.917302145
+#> V4          0.03393703 0.27563054 0.58292645 1.07368730  1.062139591
+#> V5          0.00000000 0.00000000 0.00000000 0.00000000  0.013801675
+#> V6          0.00000000 0.00000000 0.00000000 0.00000000 -0.006960286
+#> V7          0.00000000 0.00000000 0.00000000 0.00000000  0.019021092
+#> V8          0.00000000 0.00000000 0.00000000 0.00000000  0.022035477
+#> V9          0.00000000 0.00000000 0.00000000 0.00000000 -0.010361539
+#> V10         0.00000000 0.00000000 0.00000000 0.00000000  0.027813361
+printCoefficients(scad1)
+#> 11 x 5 sparse Matrix of class "dgCMatrix"
+#>                                                             
+#> b0  0.09108804 0.09108943 0.09108943 0.09108943  0.091089427
+#> b1  .          .          0.29982150 0.92165332  0.919968554
+#> b2  .          0.22333858 0.46569513 0.95702869  0.961318003
+#> b3  .          0.03305713 0.32816325 0.91548510  0.917309551
+#> b4  0.03393651 0.27562871 0.58291071 1.07368802  1.062121218
+#> b5  .          .          .          .           0.013824173
+#> b6  .          .          .          .          -0.006963821
+#> b7  .          .          .          .           0.019019983
+#> b8  .          .          .          .           0.022031383
+#> b9  .          .          .          .          -0.010358121
+#> b10 .          .          .          .           0.027812833
+```
+
+# References
+
+-   Rosseel, Y. (2012). lavaan: An R Package for Structural Equation
+    Modeling. Journal of Statistical Software, 48(2), 1–36.
+    <https://doi.org/10.18637/jss.v048.i02>
+-   Breheny, P. (2021). ncvreg: Regularization paths for scad and mcp
+    penalized regression models.
+-   Friedman, J., Hastie, T., & Tibshirani, R. (2010). Regularization
+    paths for generalized linear models via coordinate descent. Journal
+    of Statistical Software, 33(1), 1–20.
+    <https://doi.org/10.18637/jss.v033.i01>

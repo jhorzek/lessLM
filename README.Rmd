@@ -15,36 +15,47 @@ knitr::opts_chunk$set(
 
 # lessLM
 
-The sole purpose of this package is to demonstrate how the optimizers implemented in lessSEM can be used by other packages. To this end, we use a fairly simple model: A
+The sole purpose of this package is to demonstrate how the optimizers implemented in [lessSEM](https://github.com/jhorzek/lessSEM) can be used by other packages. To this end, we use a fairly simple model: A
 linear regression of the form
 $$\pmb y = \pmb X \pmb b + \pmb\varepsilon$$
 
 ## Step 1
 
-Install lessSEM from https://github.com/jhorzek/lessSEM.
+Install [lessSEM](https://github.com/jhorzek/lessSEM) from https://github.com/jhorzek/lessSEM.
 
 ## Step 2
 
-Create a new R package which uses RcppArmadillo (e.g., with ``RcppArmadillo::RcppArmadillo.package.skeleton()''). Open the DESCRIPTION file and add lessSEM to the "LinkingTo" field (see the DESCRIPTION file of this package if you are unsure what we are referring to). If you already have a package, just add lessSEM to the "LinkingTo" field.
+Create a new R package which uses [RcppArmadillo](https://github.com/RcppCore/RcppArmadillo) (e.g., with `RcppArmadillo::RcppArmadillo.package.skeleton()`). Open the DESCRIPTION file and add lessSEM to the "LinkingTo" field (see the DESCRIPTION file of this package if you are unsure what we are referring to). If you already have a package, just add lessSEM to the "LinkingTo" field.
 
 ## Step 3: Implementing your package
 
-We will assume that you already have a package which implements the model that you would like to regularize. Therefore, we will not make use of any of the functions and classes defined in lessSEM at this point. However, make sure that you have two functions:
+We will assume that you already have a package which implements the model that you would like to regularize. Therefore, we will not make use of any of the functions and classes defined in [lessSEM](https://github.com/jhorzek/lessSEM) at this point. However, make sure that you have two functions:
 
 1) A function which computes the fit (e.g., -2-log-Likelihood) of your model. This function must return a double.
 2) A function which computes the gradients of your model. This function must return an arma::rowvec.
 
-For our example, we have implemented these functions in the files src/linearRegressionModel.h and src/linearRegressionModel.cpp. We also implemented a function to compute the Hessian. This function is very helpful when using the glmnet optimizer which does use an approximation of the Hessian based on the BFGS procedure. If the initial Hessian is a poor substitute for the true Hessian, this optimizer can return wrong parameter estimates. To get a reasonable initial Hessian, we therefore also implemented this initial Hessian estimation based on the procedure used in lavaan.
+For our example, we have implemented these functions in the files src/linearRegressionModel.h and src/linearRegressionModel.cpp. We also implemented a function to compute the Hessian. This function is very helpful when using the glmnet optimizer which does use an approximation of the Hessian based on the BFGS procedure. If the initial Hessian is a poor substitute for the true Hessian, this optimizer can return wrong parameter estimates. To get a reasonable initial Hessian, we therefore also implemented this initial Hessian estimation based on the procedure used in [lavaan](https://github.com/yrosseel/lavaan).
 
-## Step 4: Linking to lessSEM
+## Step 4: Linking to [lessSEM](https://github.com/jhorzek/lessSEM)
 
-Assuming that our model is set up, we are ready to link everything to lessSEM. First, create an new file (we called ours src/optimization.cpp). Here, it is important to include the lessSEM.hpp headers (see src/optimization.cpp). All further steps necessary to use the lessSEM optimizers are outlined in the comments included in the new file src/optimization.cpp. Open this file and follow the instructions.
+Assuming that our model is set up, we are ready to link everything to [lessSEM](https://github.com/jhorzek/lessSEM). First, create an new file (we called ours src/optimization.cpp). Here, it is important to include the lessSEM.hpp headers (see src/optimization.cpp). All further steps necessary to use the [lessSEM](https://github.com/jhorzek/lessSEM) optimizers are outlined in the comments included in the new file src/optimization.cpp. Open this file and follow the instructions. Therein, we implement both, glmnet and ista optimization for the elastic net penalty and ista optimization of the scad penalty. If you are interested in how the optimization routine is designed, have a look at the "The-optimizer-interface" of the [lessSEM](https://github.com/jhorzek/lessSEM) package. 
 
 ## Step 5: Test your function
 
+### Elastic Net
+
+We will compare our results to those of [glmnet](https://github.com/cran/glmnet).
 ```{r}
 set.seed(123)
 library(lessLM)
+library(Matrix) # we will use the matrix package
+# to print the matrices below in the same sparse format
+# as glmnet or ncvreg
+
+# let's first define a small print function to beautify our results
+printCoefficients <- function(model){
+  print(t(Matrix:::Matrix(model$B, sparse = TRUE)))
+}
 
 # first, we simulate data for our
 # linear regression.
@@ -55,19 +66,73 @@ b <- c(rep(1,4),
        rep(0,6)) # true regression weights
 y <- X%*%matrix(b,ncol = 1) + rnorm(N,0,.2)
 
-l1 <- elasticNet(y = y,
+# define the tuning parameters
+lambda = seq(1,0,length.out = 5)
+
+lasso1 <- lessLM::elasticNet(y = y,
                  X = X,
                  alpha = 1, # note: glmnet and lessSEM define 
                  # the elastic net differently (lessSEM follows lslx and regsem)
                  # Therefore, you will get different results if you change alpha
                  # when compared to glmnet
-                 lambda = seq(1,0,-.1))
+                 lambda = lambda
+                 )
 
+# now, let's use the ista optimizer
+lasso2 <- lessLM::elasticNetIsta(y = y,
+                 X = X,
+                 alpha = 1, # note: glmnet and lessSEM define 
+                 # the elastic net differently (lessSEM follows lslx and regsem)
+                 # Therefore, you will get different results if you change alpha
+                 # when compared to glmnet
+                 lambda = lambda)
+
+# For comparison, we will fit the model with the glmnet package:
 library(glmnet)
-l2 <- glmnet(x = X, 
+lassoGlmnet <- glmnet(x = X, 
              y = y, 
-             lambda = seq(0,1,.1),
+             lambda = lambda,
              standardize = FALSE)
-coef(l2)
-t(l1$B)
+coef(lassoGlmnet)
+printCoefficients(lasso1)
+printCoefficients(lasso2)
+
 ```
+
+### Scad
+
+Our functions implementing the scad penalty can be found in src/optimization.cpp. 
+We will compare our function to that of [ncvreg](https://github.com/pbreheny/ncvreg). Importantly, 
+[ncvreg](https://github.com/pbreheny/ncvreg) standardizes 
+the data internally. To use exactly the same data set with both packages,
+we apply this standardization first. 
+
+```{r}
+library(ncvreg)
+X <- ncvreg::std(X)
+attr(X, "center") <- NULL
+attr(X, "scale") <- NULL
+attr(X, "nonsingular") <- NULL
+
+# Now, let's fit our model with the standardized data
+scad1 <- lessLM::scadIsta(y = y, 
+                         X = X, 
+                         theta = 3, 
+                         lambda = lambda)
+
+# for comparison, we use ncvreg
+scadFit <- ncvreg(X = X, 
+                  y = y, 
+                  penalty = "SCAD",
+                  lambda = lambda, 
+                  gamma = 3)
+
+coef(scadFit)
+printCoefficients(scad1)
+```
+
+# References
+
+* Rosseel, Y. (2012). lavaan: An R Package for Structural Equation Modeling. Journal of Statistical Software, 48(2), 1–36. https://doi.org/10.18637/jss.v048.i02
+* Breheny, P. (2021). ncvreg: Regularization paths for scad and mcp penalized regression models.
+* Friedman, J., Hastie, T., & Tibshirani, R. (2010). Regularization paths for generalized linear models via coordinate descent. Journal of Statistical Software, 33(1), 1–20. https://doi.org/10.18637/jss.v033.i01

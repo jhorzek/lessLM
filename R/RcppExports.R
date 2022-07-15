@@ -17,3 +17,11 @@ elasticNet <- function(y, X, alpha, lambda) {
     .Call(`_lessLM_elasticNet`, y, X, alpha, lambda)
 }
 
+elasticNetIsta <- function(y, X, alpha, lambda) {
+    .Call(`_lessLM_elasticNetIsta`, y, X, alpha, lambda)
+}
+
+scadIsta <- function(y, X, theta, lambda) {
+    .Call(`_lessLM_scadIsta`, y, X, theta, lambda)
+}
+
