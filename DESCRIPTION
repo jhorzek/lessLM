@@ -10,7 +10,7 @@ Description: lessLM estimates sparse linear models. This packages sole purpose i
 License: GPL (>= 2)
 Encoding: UTF-8
 RoxygenNote: 7.1.2
-Imports: Rcpp (>= 1.0.8.3)
+Imports: Rcpp (>= 1.0.8.3), glmnet, ncvreg
 LinkingTo: Rcpp, RcppArmadillo, lessSEM
 Suggests: 
     knitr,
