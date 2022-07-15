@@ -38,7 +38,7 @@ For our example, we have implemented these functions in the files src/linearRegr
 
 ## Step 4: Linking to [lessSEM](https://github.com/jhorzek/lessSEM)
 
-Assuming that our model is set up, we are ready to link everything to [lessSEM](https://github.com/jhorzek/lessSEM). First, create an new file (we called ours src/optimization.cpp). Here, it is important to include the lessSEM.hpp headers (see src/optimization.cpp). All further steps necessary to use the [lessSEM](https://github.com/jhorzek/lessSEM) optimizers are outlined in the comments included in the new file src/optimization.cpp. Open this file and follow the instructions. Therein, we implement both, glmnet and ista optimization for the elastic net penalty and ista optimization of the scad penalty. If you are interested in how the optimization routine is designed, have a look at the "The-optimizer-interface" of the [lessSEM](https://github.com/jhorzek/lessSEM) package. 
+Assuming that our model is set up, we are ready to link everything to [lessSEM](https://github.com/jhorzek/lessSEM). First, create a new file (we called ours src/optimization.cpp). Here, it is important to include the lessSEM.hpp headers (see src/optimization.cpp). All further steps necessary to use the [lessSEM](https://github.com/jhorzek/lessSEM) optimizers are outlined in the comments included in the new file src/optimization.cpp. Open this file and follow the instructions. Therein, we implement both, glmnet and ista optimization for the elastic net penalty and ista optimization of the scad penalty. If you are interested in how the optimization routine is designed, have a look at the vignette "The-optimizer-interface" of the [lessSEM](https://github.com/jhorzek/lessSEM) package. 
 
 ## Step 5: Test your function
 
