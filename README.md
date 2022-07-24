@@ -8,7 +8,7 @@ implemented in [lessSEM](https://github.com/jhorzek/lessSEM) can be used
 by other packages. To this end, we use a fairly simple model: A linear
 regression of the form
 
-![\\pmb y = \\pmb X \\pmb b + \\pmb\\varepsilon](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;%5Cpmb%20y%20%3D%20%5Cpmb%20X%20%5Cpmb%20b%20%2B%20%5Cpmb%5Cvarepsilon "\pmb y = \pmb X \pmb b + \pmb\varepsilon")
+![\pmb y = \pmb X \pmb b + \pmb\varepsilon](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;%5Cpmb%20y%20%3D%20%5Cpmb%20X%20%5Cpmb%20b%20%2B%20%5Cpmb%5Cvarepsilon "\pmb y = \pmb X \pmb b + \pmb\varepsilon")
 
 ## Step 1
 
@@ -134,18 +134,18 @@ coef(lassoGlmnet)
 #> V10         .          .         .          .           0.027396836
 printCoefficients(lasso1)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
-#>                                                           
-#> b0  0.09341722 0.1232568 0.09911445 0.0631894  0.027385203
-#> b1  .          .         0.26672653 0.6407490  1.012920701
-#> b2  .          0.2014038 0.46309007 0.7288881  0.999144918
-#> b3  .          .         0.30792603 0.6382850  0.970572420
-#> b4  0.06426309 0.2900671 0.53637576 0.7875929  1.027626352
-#> b5  .          .         .          .          0.014036323
-#> b6  .          .         .          .         -0.007460361
-#> b7  .          .         .          .          0.018590428
-#> b8  .          .         .          .          0.021930166
-#> b9  .          .         .          .         -0.009899935
-#> b10 .          .         .          .          0.027400904
+#>                                                            
+#> b0  0.09341722 0.1232570 0.09911437 0.06318934  0.027384781
+#> b1  .          .         0.26672664 0.64074906  1.012920483
+#> b2  .          0.2014038 0.46309004 0.72888813  0.999145740
+#> b3  .          .         0.30792598 0.63828498  0.970572977
+#> b4  0.06426310 0.2900671 0.53637578 0.78759295  1.027625804
+#> b5  .          .         .          .           0.014036769
+#> b6  .          .         .          .          -0.007461173
+#> b7  .          .         .          .           0.018590049
+#> b8  .          .         .          .           0.021930879
+#> b9  .          .         .          .          -0.009899871
+#> b10 .          .         .          .           0.027401229
 printCoefficients(lasso2)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
 #>                                                            

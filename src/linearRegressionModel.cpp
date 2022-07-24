@@ -1,5 +1,5 @@
 #include <RcppArmadillo.h>
-#include "linearRegressionModel.h"
+#include "linearRegressionModel.hpp"
 
 // [[Rcpp :: depends ( RcppArmadillo )]]
 
