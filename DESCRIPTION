@@ -14,5 +14,7 @@ Imports: Rcpp (>= 1.0.8.3), glmnet, ncvreg
 LinkingTo: Rcpp, RcppArmadillo, lessSEM
 Suggests: 
     knitr,
-    rmarkdown
+    rmarkdown,
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
+Config/testthat/edition: 3
