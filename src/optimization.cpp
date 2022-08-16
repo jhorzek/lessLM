@@ -1,8 +1,8 @@
 #include <RcppArmadillo.h>
-#include "lessSEM.hpp" // It is important that you include the lessSEM.hpp
+#include "lessSEM.h" // It is important that you include the lessSEM.h
 // file. for this to work, lessSEM must be installed and your DESCRIPTION file
 // must have lessSEM in the LinkingTo field.
-#include "linearRegressionModel.hpp" // of course, we also want to include
+#include "linearRegressionModel.h" // of course, we also want to include
 // our own model
 
 // the first step when linking to lessSEM is to define a model class.

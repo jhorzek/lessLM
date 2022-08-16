@@ -52,7 +52,7 @@ used in [lavaan](https://github.com/yrosseel/lavaan).
 Assuming that our model is set up, we are ready to link everything to
 [lessSEM](https://github.com/jhorzek/lessSEM). First, create a new file
 (we called ours src/optimization.cpp). Here, it is important to include
-the lessSEM.hpp headers (see src/optimization.cpp). All further steps
+the lessSEM.h headers (see src/optimization.cpp). All further steps
 necessary to use the [lessSEM](https://github.com/jhorzek/lessSEM)
 optimizers are outlined in the comments included in the new file
 src/optimization.cpp. Open this file and follow the instructions.
@@ -135,17 +135,17 @@ coef(lassoGlmnet)
 printCoefficients(lasso1)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
 #>                                                            
-#> b0  0.09341722 0.1232570 0.09911437 0.06318934  0.027384781
-#> b1  .          .         0.26672664 0.64074906  1.012920483
-#> b2  .          0.2014038 0.46309004 0.72888813  0.999145740
-#> b3  .          .         0.30792598 0.63828498  0.970572977
-#> b4  0.06426310 0.2900671 0.53637578 0.78759295  1.027625804
-#> b5  .          .         .          .           0.014036769
-#> b6  .          .         .          .          -0.007461173
-#> b7  .          .         .          .           0.018590049
-#> b8  .          .         .          .           0.021930879
-#> b9  .          .         .          .          -0.009899871
-#> b10 .          .         .          .           0.027401229
+#> b0  0.09341722 0.1232568 0.09911442 0.06318935  0.027385547
+#> b1  .          .         0.26672642 0.64074904  1.012920722
+#> b2  .          0.2014038 0.46309015 0.72888812  0.999144190
+#> b3  .          .         0.30792582 0.63828497  0.970572584
+#> b4  0.06426310 0.2900671 0.53637580 0.78759295  1.027626903
+#> b5  .          .         .          .           0.014035645
+#> b6  .          .         .          .          -0.007459542
+#> b7  .          .         .          .           0.018590589
+#> b8  .          .         .          .           0.021930040
+#> b9  .          .         .          .          -0.009899925
+#> b10 .          .         .          .           0.027400761
 printCoefficients(lasso2)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
 #>                                                            
