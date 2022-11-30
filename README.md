@@ -8,7 +8,7 @@ implemented in [lessSEM](https://github.com/jhorzek/lessSEM) can be used
 by other packages. To this end, we use a fairly simple model: A linear
 regression of the form
 
-![\pmb y = \pmb X \pmb b + \pmb\varepsilon](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;%5Cpmb%20y%20%3D%20%5Cpmb%20X%20%5Cpmb%20b%20%2B%20%5Cpmb%5Cvarepsilon "\pmb y = \pmb X \pmb b + \pmb\varepsilon")
+$$\pmb y = \pmb X \pmb b + \pmb\varepsilon$$
 
 ## Step 1
 
@@ -222,12 +222,12 @@ printCoefficients(scad1)
 
 # References
 
--   Rosseel, Y. (2012). lavaan: An R Package for Structural Equation
-    Modeling. Journal of Statistical Software, 48(2), 1–36.
-    <https://doi.org/10.18637/jss.v048.i02>
--   Breheny, P. (2021). ncvreg: Regularization paths for scad and mcp
-    penalized regression models.
--   Friedman, J., Hastie, T., & Tibshirani, R. (2010). Regularization
-    paths for generalized linear models via coordinate descent. Journal
-    of Statistical Software, 33(1), 1–20.
-    <https://doi.org/10.18637/jss.v033.i01>
+- Rosseel, Y. (2012). lavaan: An R Package for Structural Equation
+  Modeling. Journal of Statistical Software, 48(2), 1–36.
+  <https://doi.org/10.18637/jss.v048.i02>
+- Breheny, P. (2021). ncvreg: Regularization paths for scad and mcp
+  penalized regression models.
+- Friedman, J., Hastie, T., & Tibshirani, R. (2010). Regularization
+  paths for generalized linear models via coordinate descent. Journal of
+  Statistical Software, 33(1), 1–20.
+  <https://doi.org/10.18637/jss.v033.i01>
