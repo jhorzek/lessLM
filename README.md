@@ -8,7 +8,7 @@ implemented in [lessSEM](https://github.com/jhorzek/lessSEM) can be used
 by other packages. To this end, we use a fairly simple model: A linear
 regression of the form
 
-![\pmb y = \pmb X \pmb b + \pmb\varepsilon](https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D&space;%5Cbg_white&space;%5Cpmb%20y%20%3D%20%5Cpmb%20X%20%5Cpmb%20b%20%2B%20%5Cpmb%5Cvarepsilon "\pmb y = \pmb X \pmb b + \pmb\varepsilon")
+$$\pmb y = \pmb X \pmb b + \pmb\varepsilon$$
 
 ## Step 1
 
@@ -113,7 +113,7 @@ lasso2 <- lessLM::elasticNetIsta(y = y,
 
 # For comparison, we will fit the model with the glmnet package:
 library(glmnet)
-#> Loaded glmnet 4.1-4
+#> Loaded glmnet 4.1-6
 lassoGlmnet <- glmnet(x = X, 
              y = y, 
              lambda = lambda,
@@ -135,17 +135,17 @@ coef(lassoGlmnet)
 printCoefficients(lasso1)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
 #>                                                            
-#> b0  0.09341722 0.1232568 0.09911442 0.06318935  0.027385547
-#> b1  .          .         0.26672642 0.64074904  1.012920722
-#> b2  .          0.2014038 0.46309015 0.72888812  0.999144190
-#> b3  .          .         0.30792582 0.63828497  0.970572584
-#> b4  0.06426310 0.2900671 0.53637580 0.78759295  1.027626903
-#> b5  .          .         .          .           0.014035645
-#> b6  .          .         .          .          -0.007459542
-#> b7  .          .         .          .           0.018590589
-#> b8  .          .         .          .           0.021930040
-#> b9  .          .         .          .          -0.009899925
-#> b10 .          .         .          .           0.027400761
+#> b0  0.09341722 0.1232568 0.09911442 0.06318935  0.027385567
+#> b1  .          .         0.26672641 0.64074903  1.012920723
+#> b2  .          0.2014038 0.46309015 0.72888813  0.999144142
+#> b3  .          .         0.30792581 0.63828497  0.970572582
+#> b4  0.06426310 0.2900671 0.53637580 0.78759295  1.027626950
+#> b5  .          .         .          .           0.014035615
+#> b6  .          .         .          .          -0.007459486
+#> b7  .          .         .          .           0.018590602
+#> b8  .          .         .          .           0.021930016
+#> b9  .          .         .          .          -0.009899920
+#> b10 .          .         .          .           0.027400748
 printCoefficients(lasso2)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
 #>                                                            
@@ -222,12 +222,12 @@ printCoefficients(scad1)
 
 # References
 
--   Rosseel, Y. (2012). lavaan: An R Package for Structural Equation
-    Modeling. Journal of Statistical Software, 48(2), 1–36.
-    <https://doi.org/10.18637/jss.v048.i02>
--   Breheny, P. (2021). ncvreg: Regularization paths for scad and mcp
-    penalized regression models.
--   Friedman, J., Hastie, T., & Tibshirani, R. (2010). Regularization
-    paths for generalized linear models via coordinate descent. Journal
-    of Statistical Software, 33(1), 1–20.
-    <https://doi.org/10.18637/jss.v033.i01>
+- Rosseel, Y. (2012). lavaan: An R Package for Structural Equation
+  Modeling. Journal of Statistical Software, 48(2), 1–36.
+  <https://doi.org/10.18637/jss.v048.i02>
+- Breheny, P. (2021). ncvreg: Regularization paths for scad and mcp
+  penalized regression models.
+- Friedman, J., Hastie, T., & Tibshirani, R. (2010). Regularization
+  paths for generalized linear models via coordinate descent. Journal of
+  Statistical Software, 33(1), 1–20.
+  <https://doi.org/10.18637/jss.v033.i01>

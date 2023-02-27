@@ -108,10 +108,14 @@ Rcpp::List elasticNet(
   // next, we have to define the penalties we want to use.
   // The elastic net is a combination of a ridge penalty and 
   // a lasso penalty:
-  lessSEM::penaltyLASSO lasso;
-  lessSEM::penaltyRidge ridge;
-  // these penalties take tuning parameters of class tuningParametersEnet
-  lessSEM::tuningParametersEnet tp;
+  lessSEM::penaltyLASSOGlmnet lasso;
+  lessSEM::penaltyRidgeGlmnet ridge;
+  // Note that we used the glmnet variants of lasso and ridge. The reason
+  // for this is that the glmnet implementation allows for parameter-specific
+  // lambda and alpha values while the current ista implementation does not.
+  
+  // these penalties take tuning parameters of class tuningParametersEnetGlmnet
+  lessSEM::tuningParametersEnetGlmnet tp;
   
   // finally, there is also the weights. The weights vector indicates, which
   // of the parameters is regularized (weight = 1) and which is unregularized 
@@ -137,8 +141,14 @@ Rcpp::List elasticNet(
     for(int l = 0; l < lambda.n_elem; l++){
       
       // set the tuning parameters
-      tp.alpha = alpha.at(a);
-      tp.lambda = lambda.at(l);
+      // Note: glmnet expects a vector of alphas and lambdas. However,
+      // we just want to use the same value for all parameters, so we
+      // will replicate the single alpha and lambda as many times as there
+      // are parameters:
+      tp.alpha = arma::rowvec(b.length());
+      tp.alpha.fill(alpha.at(a));
+      tp.lambda = arma::rowvec(b.length());
+      tp.lambda.fill(lambda.at(l));
       
       tpValues(it,0) = alpha.at(a);
       tpValues(it,1) = lambda.at(a);
