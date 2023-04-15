@@ -67,11 +67,18 @@ b <- c(rep(1,4),
        rep(0,6)) # true regression weights
 y <- X%*%matrix(b,ncol = 1) + rnorm(N,0,.2)
 
+# we will add a column for the intercept:
+X <- cbind(1, X)
+
+startingValues <- rep(0, ncol(X))
+names(startingValues) <- paste0("b", 0:(ncol(X)-1))
+
 # define the tuning parameters
 lambda = seq(1,0,length.out = 5)
 
 lasso1 <- lessLM::elasticNet(y = y,
                  X = X,
+                 startingValues = startingValues,
                  alpha = 1, # note: glmnet and lessSEM define 
                  # the elastic net differently (lessSEM follows lslx and regsem)
                  # Therefore, you will get different results if you change alpha
@@ -82,6 +89,7 @@ lasso1 <- lessLM::elasticNet(y = y,
 # now, let's use the ista optimizer
 lasso2 <- lessLM::elasticNetIsta(y = y,
                  X = X,
+                 startingValues = startingValues,
                  alpha = 1, # note: glmnet and lessSEM define 
                  # the elastic net differently (lessSEM follows lslx and regsem)
                  # Therefore, you will get different results if you change alpha

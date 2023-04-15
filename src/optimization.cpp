@@ -14,6 +14,7 @@
 class linearRegressionModel : public lessSEM::model{
   
 public:
+
   // the lessSEM::model class has two methods: "fit" and "gradients".
   // Both of these methods must follow a fairly strict framework.
   // First: They must receive exactly two arguments: 
@@ -41,6 +42,10 @@ public:
     // have to transpose b to make things work
     return(sumSquaredErrorGradients(b.t(), y, X));
   }
+  
+  // finally, we create a constructor for our class
+  linearRegressionModel(arma::colvec y_, arma::mat X_): X(X_), y(y_){};
+  
   // IMPORTANT: Note that we used some arguments above which we did not pass to
   // the functions: y, and X. Without these arguments, we cannot use our
   // sumSquaredError and sumSquaredErrorGradients function! To make these accessible
@@ -48,51 +53,81 @@ public:
   
   const arma::colvec y;
   const arma::mat X;
-  
-  // finally, we create a constructor for our class
-  linearRegressionModel(arma::colvec y_, arma::mat X_):
-    y(y_), X(X_){}
-  
 };
 
 // Step 2: Now that we have defined our model, we can implement the functions
-// which are necessary to optimize this model. We will use the elastic net with
-// glmnet optimizer as an example.
+// which are necessary to optimize this model. lessSEM provides two different
+// optimizers: glmnet and ista. For each of these optimizers, different penalty 
+// functions are implemented. At the time of writing, these are: elastic net, cappedL1,
+// lasso, lsp, mcp, and scad. In the first example, we will make use of a simplified
+// interface that allows you to hit the ground running. This interface may not be 
+// as flexible or fast as you want it to be in some cases, so further below we will
+// also demonstrate the use of more specialized interfaces. 
+
+// Using glmnet
+// [[Rcpp::export]]
+Rcpp::List penalize(arma::colvec y, 
+                    arma::mat X,
+                    Rcpp::NumericVector startingValues,
+                    std::vector<std::string> penalty,
+                    arma::rowvec lambda,
+                    arma::rowvec theta){
+  
+  // With that, we can create our model:
+  linearRegressionModel linReg(y,X);
+  
+  // we will also compute an initial Hessian because this can 
+  // improve the optimization considerably
+  arma::colvec val = Rcpp::as<arma::colvec>(startingValues);
+  arma::mat initialHessian = approximateHessian(val,
+                                                y,
+                                                X,
+                                                1e-5
+  );
+  
+  // and optimize:
+  lessSEM::fitResults fitResult_ = lessSEM::fitGlmnet(
+    linReg,
+    startingValues,
+    penalty,
+    lambda,
+    theta,
+    initialHessian // optional, but can be very useful
+  );
+  
+  Rcpp::List result = Rcpp::List::create(
+    Rcpp::Named("fit") = fitResult_.fit,
+    Rcpp::Named("convergence") = fitResult_.convergence,
+    Rcpp::Named("rawParameters") = fitResult_.parameterValues,
+    Rcpp::Named("Hessian") = fitResult_.Hessian
+  );
+  return(result);
+  
+}
+
+
+
+// SPECIALIZED GRAINED INTERFACES:
+
+// To provide specific penalties, you can also directly interface to those instead
+// of using the simplified interface above. This can help you set up a more tailored
+// penalization. We will use the elastic net with glmnet optimizer as an example.
 
 // [[Rcpp::export]]
 Rcpp::List elasticNet(
     const arma::colvec y, 
     arma::mat X,
+    Rcpp::NumericVector startingValues,
     const arma::rowvec alpha,
     const arma::rowvec lambda
 )
 {
   
-  // first, let's add a column to X for our intercept
-  X.insert_cols(0,1);
-  X.col(0) += 1.0;
-  
-  // Now we define the parameter vector b
-  // This must be an Rcpp::NumericVector with labels
-  Rcpp::NumericVector b(X.n_cols,0);
-  Rcpp::StringVector bNames;
-  // now our vector needs names. This is a bit
-  // cumbersome and it would be easier to just let
-  // the user pass in a labeled R vector to the elasticNet
-  // function. However, we want to make this as convenient
-  // as possible for the user. Therefore, we have got to 
-  // create these labels:
-  for(int i = 0; i < b.length(); i++){
-    bNames.push_back("b" + std::to_string(i));
-  }
-  // add the labels to the parameter vector:
-  b.names() = bNames;
-  
-  // We also have to create a matrix which saves the parameter estimates
+  // We also create a matrix which saves the parameter estimates
   // for all values of alpha and lambda. 
-  Rcpp::NumericMatrix B(alpha.n_elem*lambda.n_elem, b.length());
+  Rcpp::NumericMatrix B(alpha.n_elem*lambda.n_elem, startingValues.length());
   B.fill(NA_REAL);
-  Rcpp::colnames(B) = bNames;
+  
   // we also create a matrix to save the corresponding tuning parameter values
   Rcpp::NumericMatrix tpValues(alpha.n_elem*lambda.n_elem, 2);
   tpValues.fill(NA_REAL);
@@ -121,7 +156,7 @@ Rcpp::List elasticNet(
   // of the parameters is regularized (weight = 1) and which is unregularized 
   // (weight =0). It also allows for adaptive lasso weights (e.g., weight =.0123).
   // weights must be an arma::rowvec of the same length as our parameter vector.
-  arma::rowvec weights(b.length());
+  arma::rowvec weights(startingValues.length());
   weights.fill(1.0); // we want to regularize all parameters
   weights.at(0) = 0.0; // except for the first one, which is our intercept.
   tp.weights = weights;
@@ -133,21 +168,21 @@ Rcpp::List elasticNet(
   
   control.breakOuter = 1e-10;
   control.breakInner = 1e-10;
-  control.initialHessian = approximateHessian(b,y,X,1e-10);
+  control.initialHessian = approximateHessian(startingValues,y,X,1e-10);
   
   // now it is time to iterate over all lambda and alpha values:
   int it = 0;
-  for(int a = 0; a < alpha.n_elem; a++){
-    for(int l = 0; l < lambda.n_elem; l++){
+  for(unsigned int a = 0; a < alpha.n_elem; a++){
+    for(unsigned int l = 0; l < lambda.n_elem; l++){
       
       // set the tuning parameters
       // Note: glmnet expects a vector of alphas and lambdas. However,
       // we just want to use the same value for all parameters, so we
       // will replicate the single alpha and lambda as many times as there
       // are parameters:
-      tp.alpha = arma::rowvec(b.length());
+      tp.alpha = arma::rowvec(startingValues.length());
       tp.alpha.fill(alpha.at(a));
-      tp.lambda = arma::rowvec(b.length());
+      tp.lambda = arma::rowvec(startingValues.length());
       tp.lambda.fill(lambda.at(l));
       
       tpValues(it,0) = alpha.at(a);
@@ -165,7 +200,7 @@ Rcpp::List elasticNet(
       
       lessSEM::fitResults lmFit = lessSEM::glmnet(
         linReg, // the first argument is our model
-        b, // the second are the parameters
+        startingValues, // the second are the parameters
         lasso, // the third is our lasso penalty
         ridge, // the fourth our ridge penalty
         tp, // the fifth is our tuning parameter 
@@ -174,11 +209,11 @@ Rcpp::List elasticNet(
       
       loss.at(it) = lmFit.fit;
       
-      for(int i = 0; i < b.length(); i++){
+      for(unsigned int i = 0; i < startingValues.length(); i++){
         // let's save the parameters
         B(it,i) = lmFit.parameterValues.at(i);
         // and also carry over the current estimates for the next iteration
-        b.at(i) = lmFit.parameterValues.at(i);
+        startingValues.at(i) = lmFit.parameterValues.at(i);
       }
       
       // carry over Hessian for next iteration
@@ -202,6 +237,7 @@ Rcpp::List elasticNet(
 Rcpp::List elasticNetIsta(
     const arma::colvec y, 
     arma::mat X,
+    Rcpp::NumericVector startingValues,
     const arma::rowvec alpha,
     const arma::rowvec lambda
 )
@@ -211,31 +247,10 @@ Rcpp::List elasticNetIsta(
   // FAIRLY SIMILAR TO THE GLMNET OPTIMIZER DESCRIBED ABOVE.
   // THE MAIN DIFFERENCES WILL BE COMMENTED IN ALL CAPTIONS.
   
-  // first, let's add a column to X for our intercept
-  X.insert_cols(0,1);
-  X.col(0) += 1.0;
-  
-  // Now we define the parameter vector b
-  // This must be an Rcpp::NumericVector with labels
-  Rcpp::NumericVector b(X.n_cols,0);
-  Rcpp::StringVector bNames;
-  // now our vector needs names. This is a bit
-  // cumbersome and it would be easier to just let
-  // the user pass in a labeled R vector to the elasticNet
-  // function. However, we want to make this as convenient
-  // as possible for the user. Therefore, we have got to 
-  // create these labels:
-  for(int i = 0; i < b.length(); i++){
-    bNames.push_back("b" + std::to_string(i));
-  }
-  // add the labels to the parameter vector:
-  b.names() = bNames;
-  
-  // We also have to create a matrix which saves the parameter estimates
+  // We have to create a matrix which saves the parameter estimates
   // for all values of alpha and lambda. 
-  Rcpp::NumericMatrix B(alpha.n_elem*lambda.n_elem, b.length());
+  Rcpp::NumericMatrix B(alpha.n_elem*lambda.n_elem, startingValues.length());
   B.fill(NA_REAL);
-  Rcpp::colnames(B) = bNames;
   // we also create a matrix to save the corresponding tuning parameter values
   Rcpp::NumericMatrix tpValues(alpha.n_elem*lambda.n_elem, 2);
   tpValues.fill(NA_REAL);
@@ -268,7 +283,7 @@ Rcpp::List elasticNetIsta(
   // of the parameters is regularized (weight = 1) and which is unregularized 
   // (weight =0). It also allows for adaptive lasso weights (e.g., weight =.0123).
   // weights must be an arma::rowvec of the same length as our parameter vector.
-  arma::rowvec weights(b.length());
+  arma::rowvec weights(startingValues.length());
   weights.fill(1.0); // we want to regularize all parameters
   weights.at(0) = 0.0; // except for the first one, which is our intercept.
   tpLasso.weights = weights;
@@ -283,8 +298,8 @@ Rcpp::List elasticNetIsta(
   
   // now it is time to iterate over all lambda and alpha values:
   int it = 0;
-  for(int a = 0; a < alpha.n_elem; a++){
-    for(int l = 0; l < lambda.n_elem; l++){
+  for(unsigned int a = 0; a < alpha.n_elem; a++){
+    for(unsigned int l = 0; l < lambda.n_elem; l++){
       
       // DON'T FORGET TO UPDATE BOTH TUNING PARAMETERS
       // set the tuning parameters
@@ -307,7 +322,7 @@ Rcpp::List elasticNetIsta(
       
       lessSEM::fitResults lmFit = lessSEM::ista(
         linReg, // the first argument is our model
-        b, // the second are the parameters
+        startingValues, // the second are the parameters
         proxOp,
         lasso, // the third is our lasso penalty
         ridge, // the fourth our ridge penalty
@@ -318,11 +333,11 @@ Rcpp::List elasticNetIsta(
       
       loss.at(it) = lmFit.fit;
       
-      for(int i = 0; i < b.length(); i++){
+      for(unsigned int i = 0; i < startingValues.length(); i++){
         // let's save the parameters
         B(it,i) = lmFit.parameterValues.at(i);
         // and also carry over the current estimates for the next iteration
-        b.at(i) = lmFit.parameterValues.at(i);
+        startingValues.at(i) = lmFit.parameterValues.at(i);
       }
       
       it++;
@@ -343,6 +358,7 @@ Rcpp::List elasticNetIsta(
 Rcpp::List scadIsta(
     const arma::colvec y, 
     arma::mat X,
+    Rcpp::NumericVector startingValues,
     const arma::rowvec theta,
     const arma::rowvec lambda
 )
@@ -352,31 +368,10 @@ Rcpp::List scadIsta(
   // FAIRLY SIMILAR TO THE ELASTIC NET OPTIMIZATION WITH ISTA DESCRIBED ABOVE.
   // THE MAIN DIFFERENCES WILL BE COMMENTED IN ALL CAPTIONS.
   
-  // first, let's add a column to X for our intercept
-  X.insert_cols(0,1);
-  X.col(0) += 1.0;
-  
-  // Now we define the parameter vector b
-  // This must be an Rcpp::NumericVector with labels
-  Rcpp::NumericVector b(X.n_cols,0);
-  Rcpp::StringVector bNames;
-  // now our vector needs names. This is a bit
-  // cumbersome and it would be easier to just let
-  // the user pass in a labeled R vector to the elasticNet
-  // function. However, we want to make this as convenient
-  // as possible for the user. Therefore, we have got to 
-  // create these labels:
-  for(int i = 0; i < b.length(); i++){
-    bNames.push_back("b" + std::to_string(i));
-  }
-  // add the labels to the parameter vector:
-  b.names() = bNames;
-  
-  // We also have to create a matrix which saves the parameter estimates
+  // We have to create a matrix which saves the parameter estimates
   // for all values of alpha and lambda. 
-  Rcpp::NumericMatrix B(theta.n_elem*lambda.n_elem, b.length());
+  Rcpp::NumericMatrix B(theta.n_elem*lambda.n_elem, startingValues.length());
   B.fill(NA_REAL);
-  Rcpp::colnames(B) = bNames;
   // we also create a matrix to save the corresponding tuning parameter values
   Rcpp::NumericMatrix tpValues(theta.n_elem*lambda.n_elem, 2);
   tpValues.fill(NA_REAL);
@@ -421,7 +416,7 @@ Rcpp::List scadIsta(
   // of the parameters is regularized (weight = 1) and which is unregularized 
   // (weight =0). It also allows for adaptive lasso weights (e.g., weight =.0123).
   // weights must be an arma::rowvec of the same length as our parameter vector.
-  arma::rowvec weights(b.length());
+  arma::rowvec weights(startingValues.length());
   weights.fill(1.0); // we want to regularize all parameters
   weights.at(0) = 0.0; // except for the first one, which is our intercept.
   tpScad.weights = weights;
@@ -436,8 +431,8 @@ Rcpp::List scadIsta(
   
   // now it is time to iterate over all lambda and theta values:
   int it = 0;
-  for(int a = 0; a < theta.n_elem; a++){
-    for(int l = 0; l < lambda.n_elem; l++){
+  for(unsigned int a = 0; a < theta.n_elem; a++){
+    for(unsigned int l = 0; l < lambda.n_elem; l++){
       
       // DON'T FORGET TO UPDATE BOTH TUNING PARAMETERS
       // set the tuning parameters
@@ -458,7 +453,7 @@ Rcpp::List scadIsta(
       
       lessSEM::fitResults lmFit = lessSEM::ista(
         linReg, // the first argument is our model
-        b, // the second are the parameters
+        startingValues, // the second are the parameters
         proxOpScad,
         scad, // the third is our scad penalty
         noSmoothP, // the fourth our smooth penalty
@@ -469,11 +464,11 @@ Rcpp::List scadIsta(
       
       loss.at(it) = lmFit.fit;
       
-      for(int i = 0; i < b.length(); i++){
+      for(unsigned int i = 0; i < startingValues.length(); i++){
         // let's save the parameters
         B(it,i) = lmFit.parameterValues.at(i);
         // and also carry over the current estimates for the next iteration
-        b.at(i) = lmFit.parameterValues.at(i);
+        startingValues.at(i) = lmFit.parameterValues.at(i);
       }
       
       it++;
