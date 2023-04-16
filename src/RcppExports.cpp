@@ -51,9 +51,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// penalize
-Rcpp::List penalize(arma::colvec y, arma::mat X, Rcpp::NumericVector startingValues, std::vector<std::string> penalty, arma::rowvec lambda, arma::rowvec theta);
-RcppExport SEXP _lessLM_penalize(SEXP ySEXP, SEXP XSEXP, SEXP startingValuesSEXP, SEXP penaltySEXP, SEXP lambdaSEXP, SEXP thetaSEXP) {
+// penalizeGlmnet
+Rcpp::List penalizeGlmnet(arma::colvec y, arma::mat X, Rcpp::NumericVector startingValues, std::vector<std::string> penalty, arma::rowvec lambda, arma::rowvec theta, arma::mat initialHessian);
+RcppExport SEXP _lessLM_penalizeGlmnet(SEXP ySEXP, SEXP XSEXP, SEXP startingValuesSEXP, SEXP penaltySEXP, SEXP lambdaSEXP, SEXP thetaSEXP, SEXP initialHessianSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -63,7 +63,24 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::vector<std::string> >::type penalty(penaltySEXP);
     Rcpp::traits::input_parameter< arma::rowvec >::type lambda(lambdaSEXP);
     Rcpp::traits::input_parameter< arma::rowvec >::type theta(thetaSEXP);
-    rcpp_result_gen = Rcpp::wrap(penalize(y, X, startingValues, penalty, lambda, theta));
+    Rcpp::traits::input_parameter< arma::mat >::type initialHessian(initialHessianSEXP);
+    rcpp_result_gen = Rcpp::wrap(penalizeGlmnet(y, X, startingValues, penalty, lambda, theta, initialHessian));
+    return rcpp_result_gen;
+END_RCPP
+}
+// penalizeIsta
+Rcpp::List penalizeIsta(arma::colvec y, arma::mat X, Rcpp::NumericVector startingValues, std::vector<std::string> penalty, arma::rowvec lambda, arma::rowvec theta);
+RcppExport SEXP _lessLM_penalizeIsta(SEXP ySEXP, SEXP XSEXP, SEXP startingValuesSEXP, SEXP penaltySEXP, SEXP lambdaSEXP, SEXP thetaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::colvec >::type y(ySEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type startingValues(startingValuesSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type penalty(penaltySEXP);
+    Rcpp::traits::input_parameter< arma::rowvec >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< arma::rowvec >::type theta(thetaSEXP);
+    rcpp_result_gen = Rcpp::wrap(penalizeIsta(y, X, startingValues, penalty, lambda, theta));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -117,7 +134,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_lessLM_sumSquaredError", (DL_FUNC) &_lessLM_sumSquaredError, 3},
     {"_lessLM_sumSquaredErrorGradients", (DL_FUNC) &_lessLM_sumSquaredErrorGradients, 3},
     {"_lessLM_approximateHessian", (DL_FUNC) &_lessLM_approximateHessian, 4},
-    {"_lessLM_penalize", (DL_FUNC) &_lessLM_penalize, 6},
+    {"_lessLM_penalizeGlmnet", (DL_FUNC) &_lessLM_penalizeGlmnet, 7},
+    {"_lessLM_penalizeIsta", (DL_FUNC) &_lessLM_penalizeIsta, 6},
     {"_lessLM_elasticNet", (DL_FUNC) &_lessLM_elasticNet, 5},
     {"_lessLM_elasticNetIsta", (DL_FUNC) &_lessLM_elasticNetIsta, 5},
     {"_lessLM_scadIsta", (DL_FUNC) &_lessLM_scadIsta, 5},

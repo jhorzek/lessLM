@@ -12,8 +12,12 @@ $$\pmb y = \pmb X \pmb b + \pmb\varepsilon$$
 
 ## Step 1
 
-Install [lessSEM](https://github.com/jhorzek/lessSEM) from
-<https://github.com/jhorzek/lessSEM>.
+Install [lessSEM](https://github.com/jhorzek/lessSEM) from CRAN or
+[GitHub](https://github.com/jhorzek/lessSEM).
+
+``` r
+install.packages("lessSEM")
+```
 
 ## Step 2
 
@@ -23,6 +27,10 @@ Create a new R package which uses
 file and add lessSEM to the “LinkingTo” field (see the DESCRIPTION file
 of this package if you are unsure what we are referring to). If you
 already have a package, just add lessSEM to the “LinkingTo” field.
+
+Alternatively, you can copy the optimizers from
+[here](https://github.com/jhorzek/lessOptimizers) into the source folder
+of your package.
 
 ## Step 3: Implementing your package
 
@@ -38,36 +46,41 @@ make sure that you have two functions:
     must return an arma::rowvec.
 
 For our example, we have implemented these functions in the files
-src/linearRegressionModel.h and src/linearRegressionModel.cpp. We also
-implemented a function to compute the Hessian. This function is very
-helpful when using the glmnet optimizer which does use an approximation
-of the Hessian based on the BFGS procedure. If the initial Hessian is a
-poor substitute for the true Hessian, this optimizer can return wrong
-parameter estimates. To get a reasonable initial Hessian, we therefore
-also implemented this initial Hessian estimation based on the procedure
-used in [lavaan](https://github.com/yrosseel/lavaan).
+[src/linearRegressionModel.h](https://github.com/jhorzek/lessLM/blob/main/src/linearRegressionModel.h)
+and
+[src/linearRegressionModel.cpp](https://github.com/jhorzek/lessLM/blob/main/src/linearRegressionModel.cpp).
+We also implemented a function to compute the Hessian. This function is
+very helpful when using the glmnet optimizer which does use an
+approximation of the Hessian based on the BFGS procedure. If the initial
+Hessian is a poor substitute for the true Hessian, this optimizer can
+return wrong parameter estimates. To get a reasonable initial Hessian,
+we therefore also implemented this initial Hessian estimation based on
+the procedure used in [lavaan](https://github.com/yrosseel/lavaan).
 
 ## Step 4: Linking to [lessSEM](https://github.com/jhorzek/lessSEM)
 
 Assuming that our model is set up, we are ready to link everything to
 [lessSEM](https://github.com/jhorzek/lessSEM). First, create a new file
-(we called ours src/optimization.cpp). Here, it is important to include
-the lessSEM.h headers (see src/optimization.cpp). All further steps
-necessary to use the [lessSEM](https://github.com/jhorzek/lessSEM)
-optimizers are outlined in the comments included in the new file
-src/optimization.cpp. Open this file and follow the instructions.
-Therein, we implement both, glmnet and ista optimization for the elastic
-net penalty and ista optimization of the scad penalty. If you are
-interested in how the optimization routine is designed, have a look at
-the vignette “The-optimizer-interface” of the
-[lessSEM](https://github.com/jhorzek/lessSEM) package.
+(we called ours
+[src/optimization.cpp](https://github.com/jhorzek/lessLM/blob/main/src/optimization.cpp)).
+Here, it is important to include the lessSEM.h headers (see
+[src/optimization.cpp](https://github.com/jhorzek/lessLM/blob/main/src/optimization.cpp)).
+All further steps necessary to use the
+[lessSEM](https://github.com/jhorzek/lessSEM) optimizers are outlined in
+the comments included in the new file
+[src/optimization.cpp](https://github.com/jhorzek/lessLM/blob/main/src/optimization.cpp).
+Open this file and follow the instructions. Therein, we implement both,
+glmnet and ista optimization for mixed penalties. You can also implement
+more specialized routines. This is shown in the file
+[src/optimization_specialized.cpp](https://github.com/jhorzek/lessLM/blob/main/src/optimization_specialized.cpp),
+where the elastic net penalty and ista optimization of the scad penalty
+are demonstrated. If you are interested in how the optimization routine
+is designed, have a look at the vignette “The-optimizer-interface” of
+the [lessSEM](https://github.com/jhorzek/lessSEM) package.
 
 ## Step 5: Test your function
 
-### Elastic Net
-
-We will compare our results to those of
-[glmnet](https://github.com/cran/glmnet).
+### Simulating data
 
 ``` r
 set.seed(123)
@@ -90,34 +103,211 @@ b <- c(rep(1,4),
        rep(0,6)) # true regression weights
 y <- X%*%matrix(b,ncol = 1) + rnorm(N,0,.2)
 
+# Our implementation of linear regressions does not automatically add an intercept.
+# Therefore, we will add a column for the intercept:
+Xext <- cbind(1, X)
+```
+
+### Using the functions in [src/optimization.cpp](https://github.com/jhorzek/lessLM/blob/main/src/optimization.cpp)
+
+The implementation in
+[src/optimization.cpp](https://github.com/jhorzek/lessLM/blob/main/src/optimization.cpp)
+is very flexible as it allows for combining different penalties for
+different parameters. To use the function, we have to first provide some
+starting values:
+
+``` r
+startingValues <- rep(0, ncol(Xext))
+names(startingValues) <- paste0("b", 0:(ncol(Xext)-1))
+```
+
+Now we can regularize our model:
+
+``` r
+# glmnet
+lassoGlmnet <- lessLM::penalizeGlmnet(
+  y = y,
+  X = Xext,
+  # We pass our starting values:
+  startingValues = startingValues,
+  # For each of our values, we have to specify the penalty we want to use.
+  # Possible are "none", "cappedL1", "lasso", "lsp", "mcp", or "scad":
+  penalty = c("none", # we don't want to regularize the intercept
+              # all other 10 regression parameters are regularized with the lasso:
+              "lasso", "lasso", "lasso", "lasso", "lasso", 
+              "lasso", "lasso", "lasso", "lasso", "lasso"),
+  lambda = .3, # the same lambda will be used for all parameters. We can also pass
+  # parameter-specific lambda values
+  theta = 0, # Theta is not used by any of the penalties, but we still have to pass
+  # some values
+  initialHessian = matrix(1)
+)
+#> Warning in lessLM::penalizeGlmnet(y = y, X = Xext, startingValues =
+#> startingValues, : Setting initial Hessian to identity matrix. We recommend
+#> passing a better Hessian.
+```
+
+Note that we get a warning because we did not pass a true Hessian. For
+our simple model, this will still work.
+
+We can check the paramters as follows:
+
+``` r
+Matrix::Matrix(lassoGlmnet$rawParameters,
+               sparse = TRUE)
+#> 1 x 11 sparse Matrix of class "dgCMatrix"
+#>                                                                  
+#> [1,] 0.070374 0.5659441 0.6757283 0.5722129 0.7373493 . . . . . .
+```
+
+In practice, you will want to use multiple $\lambda$ values:
+
+``` r
+# iterate over multiple lambdas
+initialHessian <- matrix(1)
+estimates <- c()
+for(lambda in seq(0,1,.1)){
+  fit <- lessLM::penalizeGlmnet(
+    y = y,
+    X = Xext,
+    startingValues = startingValues,
+    penalty = c("none", 
+                "lasso", "lasso", "lasso", "lasso", "lasso", 
+                "lasso", "lasso", "lasso", "lasso", "lasso"),
+    lambda = lambda, 
+    theta = 0,
+    initialHessian = initialHessian
+  )
+  # save estimates
+  estimates <- rbind(estimates, fit$rawParameters)
+  # update Hessian for next iterations
+  initialHessian = fit$Hessian
+}
+round(Matrix:::Matrix(estimates, sparse = TRUE),3)
+#> 11 x 11 sparse Matrix of class "dgCMatrix"
+#>                                                                         
+#>  [1,] 0.027 1.013 0.999 0.971 1.028 0.014 -0.007 0.019 0.022 -0.01 0.027
+#>  [2,] 0.042 0.865 0.888 0.836 0.938 .      .     .     .      .    .    
+#>  [3,] 0.056 0.716 0.782 0.704 0.838 .      .     .     .      .    .    
+#>  [4,] 0.070 0.566 0.676 0.572 0.737 .      .     .     .      .    .    
+#>  [5,] 0.085 0.416 0.569 0.440 0.637 .      .     .     .      .    .    
+#>  [6,] 0.099 0.267 0.463 0.308 0.536 .      .     .     .      .    .    
+#>  [7,] 0.113 0.117 0.357 0.176 0.436 .      .     .     .      .    .    
+#>  [8,] 0.125 .     0.252 0.048 0.337 .      .     .     .      .    .    
+#>  [9,] 0.116 .     0.149 .     0.245 .      .     .     .      .    .    
+#> [10,] 0.102 .     0.046 .     0.156 .      .     .     .      .    .    
+#> [11,] 0.093 .     .     .     0.064 .      .     .     .      .    .
+```
+
+We can also mix penalties…
+
+``` r
+mixedGlmnet <- lessLM::penalizeGlmnet(
+  y = y,
+  X = Xext,
+  # We pass our starting values:
+  startingValues = startingValues,
+  # For each of our values, we have to specify the penalty we want to use.
+  # Possible are "none", "cappedL1", "lasso", "lsp", "mcp", or "scad":
+  penalty = c("none", # we don't want to regularize the intercept
+              "cappedL1", "cappedL1", "cappedL1", "cappedL1", "cappedL1", 
+              "lasso", "lasso", "lasso", "lasso", "lasso"),
+  lambda = .3,
+  theta = 1, # theta will be used by cappedL1
+  initialHessian = matrix(1)
+)
+
+round(Matrix:::Matrix(mixedGlmnet$rawParameters, sparse = TRUE),3)
+#> 1 x 11 sparse Matrix of class "dgCMatrix"
+#>                                              
+#> [1,] 0.07 0.566 0.676 0.572 0.737 . . . . . .
+```
+
+… or use the ista optimizer instead:
+
+``` r
+mixedIsta <- lessLM::penalizeIsta(
+  y = y,
+  X = Xext,
+  # We pass our starting values:
+  startingValues = startingValues,
+  # For each of our values, we have to specify the penalty we want to use.
+  # Possible are "none", "cappedL1", "lasso", "lsp", "mcp", or "scad":
+  penalty = c("none", # we don't want to regularize the intercept
+              "cappedL1", "cappedL1", "cappedL1", "cappedL1", "cappedL1", 
+              "lasso", "lasso", "lasso", "lasso", "lasso"),
+  lambda = .3,
+  theta = 1 # theta will be used by cappedL1
+)
+
+round(Matrix:::Matrix(mixedIsta$rawParameters, sparse = TRUE),3)
+#> 1 x 11 sparse Matrix of class "dgCMatrix"
+#>                                              
+#> [1,] 0.07 0.566 0.676 0.572 0.737 . . . . . .
+```
+
+Finally, if we just specify a single penalty, the same penalty will be
+used for all parameters:
+
+``` r
+mixedIsta <- lessLM::penalizeIsta(
+  y = y,
+  X = Xext,
+  # We pass our starting values:
+  startingValues = startingValues,
+  penalty = "lasso", # lasso will be applied to all parameters (including 
+  # the intercept)
+  lambda = .3,
+  theta = 0
+)
+
+round(Matrix:::Matrix(mixedIsta$rawParameters, sparse = TRUE),3)
+#> 1 x 11 sparse Matrix of class "dgCMatrix"
+#>                                           
+#> [1,] . 0.574 0.668 0.583 0.736 . . . . . .
+```
+
+### Specialized Implementations in [src/optimization_specialized.cpp](https://github.com/jhorzek/lessLM/blob/main/src/optimization_specialized.cpp)
+
+Our specialized implementations fit the model for different values of
+the tuning parameters.
+
+#### Elastic Net
+
+We will compare our results to those of
+[glmnet](https://github.com/cran/glmnet).
+
+``` r
 # define the tuning parameters
 lambda = seq(1,0,length.out = 5)
 
 lasso1 <- lessLM::elasticNet(y = y,
-                 X = X,
-                 alpha = 1, # note: glmnet and lessSEM define 
-                 # the elastic net differently (lessSEM follows lslx and regsem)
-                 # Therefore, you will get different results if you change alpha
-                 # when compared to glmnet
-                 lambda = lambda
-                 )
+                             X = Xext,
+                             startingValues = startingValues,
+                             alpha = 1, # note: glmnet and lessSEM define 
+                             # the elastic net differently (lessSEM follows lslx and regsem)
+                             # Therefore, you will get different results if you change alpha
+                             # when compared to glmnet
+                             lambda = lambda
+)
 
 # now, let's use the ista optimizer
 lasso2 <- lessLM::elasticNetIsta(y = y,
-                 X = X,
-                 alpha = 1, # note: glmnet and lessSEM define 
-                 # the elastic net differently (lessSEM follows lslx and regsem)
-                 # Therefore, you will get different results if you change alpha
-                 # when compared to glmnet
-                 lambda = lambda)
+                                 X = Xext,
+                                 startingValues = startingValues,
+                                 alpha = 1, # note: glmnet and lessSEM define 
+                                 # the elastic net differently (lessSEM follows lslx and regsem)
+                                 # Therefore, you will get different results if you change alpha
+                                 # when compared to glmnet
+                                 lambda = lambda)
 
 # For comparison, we will fit the model with the glmnet package:
 library(glmnet)
 #> Loaded glmnet 4.1-6
 lassoGlmnet <- glmnet(x = X, 
-             y = y, 
-             lambda = lambda,
-             standardize = FALSE)
+                      y = y, 
+                      lambda = lambda,
+                      standardize = FALSE)
 coef(lassoGlmnet)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
 #>                     s0        s1         s2         s3           s4
@@ -134,38 +324,39 @@ coef(lassoGlmnet)
 #> V10         .          .         .          .           0.027396836
 printCoefficients(lasso1)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
-#>                                                            
-#> b0  0.09341722 0.1232568 0.09911442 0.06318935  0.027385567
-#> b1  .          .         0.26672641 0.64074903  1.012920723
-#> b2  .          0.2014038 0.46309015 0.72888813  0.999144142
-#> b3  .          .         0.30792581 0.63828497  0.970572582
-#> b4  0.06426310 0.2900671 0.53637580 0.78759295  1.027626950
-#> b5  .          .         .          .           0.014035615
-#> b6  .          .         .          .          -0.007459486
-#> b7  .          .         .          .           0.018590602
-#> b8  .          .         .          .           0.021930016
-#> b9  .          .         .          .          -0.009899920
-#> b10 .          .         .          .           0.027400748
+#>                                                              
+#>  [1,] 0.09341722 0.1232569 0.09911444 0.06318939  0.027385625
+#>  [2,] .          .         0.26672660 0.64074886  1.012920355
+#>  [3,] .          0.2014038 0.46309002 0.72888814  0.999144649
+#>  [4,] .          .         0.30792603 0.63828480  0.970572449
+#>  [5,] 0.06426310 0.2900671 0.53637578 0.78759293  1.027626673
+#>  [6,] .          .         .          .           0.014034808
+#>  [7,] .          .         .          .          -0.007459845
+#>  [8,] .          .         .          .           0.018590388
+#>  [9,] .          .         .          .           0.021929582
+#> [10,] .          .         .          .          -0.009900567
+#> [11,] .          .         .          .           0.027400801
 printCoefficients(lasso2)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
-#>                                                            
-#> b0  0.09341660 0.1232553 0.09911708 0.06319168  0.027380698
-#> b1  .          .         0.26672763 0.64074985  1.012922529
-#> b2  .          0.2014050 0.46308822 0.72888662  0.999147143
-#> b3  .          .         0.30792723 0.63828598  0.970570230
-#> b4  0.06426509 0.2900689 0.53637334 0.78759086  1.027637648
-#> b5  .          .         .          .           0.014031732
-#> b6  .          .         .          .          -0.007464030
-#> b7  .          .         .          .           0.018593755
-#> b8  .          .         .          .           0.021935357
-#> b9  .          .         .          .          -0.009908269
-#> b10 .          .         .          .           0.027408142
+#>                                                              
+#>  [1,] 0.09341617 0.1232553 0.09911708 0.06319168  0.027380698
+#>  [2,] .          .         0.26672763 0.64074985  1.012922529
+#>  [3,] .          0.2014050 0.46308822 0.72888662  0.999147143
+#>  [4,] .          .         0.30792723 0.63828598  0.970570230
+#>  [5,] 0.06426599 0.2900689 0.53637334 0.78759086  1.027637648
+#>  [6,] .          .         .          .           0.014031732
+#>  [7,] .          .         .          .          -0.007464030
+#>  [8,] .          .         .          .           0.018593755
+#>  [9,] .          .         .          .           0.021935357
+#> [10,] .          .         .          .          -0.009908269
+#> [11,] .          .         .          .           0.027408142
 ```
 
-### Scad
+#### Scad
 
 Our functions implementing the scad penalty can be found in
-src/optimization.cpp. We will compare our function to that of
+[src/optimization_specialized.cpp](https://github.com/jhorzek/lessLM/blob/main/src/optimization_specialized.cpp).
+We will compare our function to that of
 [ncvreg](https://github.com/pbreheny/ncvreg). Importantly,
 [ncvreg](https://github.com/pbreheny/ncvreg) standardizes the data
 internally. To use exactly the same data set with both packages, we
@@ -178,11 +369,14 @@ attr(X, "center") <- NULL
 attr(X, "scale") <- NULL
 attr(X, "nonsingular") <- NULL
 
+Xext <- cbind(1, X)
+
 # Now, let's fit our model with the standardized data
 scad1 <- lessLM::scadIsta(y = y, 
-                         X = X, 
-                         theta = 3, 
-                         lambda = lambda)
+                          X = Xext,
+                          startingValues = startingValues,
+                          theta = 3, 
+                          lambda = lambda)
 
 # for comparison, we use ncvreg
 scadFit <- ncvreg(X = X, 
@@ -206,18 +400,18 @@ coef(scadFit)
 #> V10         0.00000000 0.00000000 0.00000000 0.00000000  0.027813361
 printCoefficients(scad1)
 #> 11 x 5 sparse Matrix of class "dgCMatrix"
-#>                                                             
-#> b0  0.09108804 0.09108943 0.09108943 0.09108943  0.091089427
-#> b1  .          .          0.29982150 0.92165332  0.919968554
-#> b2  .          0.22333858 0.46569513 0.95702869  0.961318003
-#> b3  .          0.03305713 0.32816325 0.91548510  0.917309551
-#> b4  0.03393651 0.27562871 0.58291071 1.07368802  1.062121218
-#> b5  .          .          .          .           0.013824173
-#> b6  .          .          .          .          -0.006963821
-#> b7  .          .          .          .           0.019019983
-#> b8  .          .          .          .           0.022031383
-#> b9  .          .          .          .          -0.010358121
-#> b10 .          .          .          .           0.027812833
+#>                                                               
+#>  [1,] 0.09108724 0.09108943 0.09108943 0.09108943  0.091089427
+#>  [2,] .          .          0.29982150 0.92165332  0.919968554
+#>  [3,] .          0.22333858 0.46569513 0.95702869  0.961318003
+#>  [4,] .          0.03305713 0.32816325 0.91548510  0.917309551
+#>  [5,] 0.03393716 0.27562871 0.58291071 1.07368802  1.062121218
+#>  [6,] .          .          .          .           0.013824173
+#>  [7,] .          .          .          .          -0.006963821
+#>  [8,] .          .          .          .           0.019019983
+#>  [9,] .          .          .          .           0.022031383
+#> [10,] .          .          .          .          -0.010358121
+#> [11,] .          .          .          .           0.027812833
 ```
 
 # References

@@ -13,8 +13,12 @@ approximateHessian <- function(b, y, X, eps) {
     .Call(`_lessLM_approximateHessian`, b, y, X, eps)
 }
 
-penalize <- function(y, X, startingValues, penalty, lambda, theta) {
-    .Call(`_lessLM_penalize`, y, X, startingValues, penalty, lambda, theta)
+penalizeGlmnet <- function(y, X, startingValues, penalty, lambda, theta, initialHessian) {
+    .Call(`_lessLM_penalizeGlmnet`, y, X, startingValues, penalty, lambda, theta, initialHessian)
+}
+
+penalizeIsta <- function(y, X, startingValues, penalty, lambda, theta) {
+    .Call(`_lessLM_penalizeIsta`, y, X, startingValues, penalty, lambda, theta)
 }
 
 elasticNet <- function(y, X, startingValues, alpha, lambda) {

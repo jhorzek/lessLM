@@ -13,11 +13,17 @@ test_that("testing ista elastic net", {
          rep(0,6)) # true regression weights
   y <- X%*%matrix(b,ncol = 1) + rnorm(N,0,.2)
   
+  Xext <- cbind(1, X)
+  
+  startingValues <- rep(0, ncol(Xext))
+  names(startingValues) <- paste0("b", 0:(ncol(Xext)-1))
+  
   # define the tuning parameters
   lambda = seq(1,0,length.out = 5)
   
   lasso1 <- lessLM::elasticNetIsta(y = y,
-                                   X = X,
+                                   X = Xext,
+                                   startingValues = startingValues,
                                    alpha = 1, # note: glmnet and lessSEM define 
                                    # the elastic net differently (lessSEM follows lslx and regsem)
                                    # Therefore, you will get different results if you change alpha
