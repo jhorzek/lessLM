@@ -13,15 +13,23 @@ approximateHessian <- function(b, y, X, eps) {
     .Call(`_lessLM_approximateHessian`, b, y, X, eps)
 }
 
-elasticNet <- function(y, X, alpha, lambda) {
-    .Call(`_lessLM_elasticNet`, y, X, alpha, lambda)
+penalizeGlmnet <- function(y, X, startingValues, penalty, lambda, theta, initialHessian) {
+    .Call(`_lessLM_penalizeGlmnet`, y, X, startingValues, penalty, lambda, theta, initialHessian)
 }
 
-elasticNetIsta <- function(y, X, alpha, lambda) {
-    .Call(`_lessLM_elasticNetIsta`, y, X, alpha, lambda)
+penalizeIsta <- function(y, X, startingValues, penalty, lambda, theta) {
+    .Call(`_lessLM_penalizeIsta`, y, X, startingValues, penalty, lambda, theta)
 }
 
-scadIsta <- function(y, X, theta, lambda) {
-    .Call(`_lessLM_scadIsta`, y, X, theta, lambda)
+elasticNet <- function(y, X, startingValues, alpha, lambda) {
+    .Call(`_lessLM_elasticNet`, y, X, startingValues, alpha, lambda)
+}
+
+elasticNetIsta <- function(y, X, startingValues, alpha, lambda) {
+    .Call(`_lessLM_elasticNetIsta`, y, X, startingValues, alpha, lambda)
+}
+
+scadIsta <- function(y, X, startingValues, theta, lambda) {
+    .Call(`_lessLM_scadIsta`, y, X, startingValues, theta, lambda)
 }
 

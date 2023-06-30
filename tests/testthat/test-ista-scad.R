@@ -18,14 +18,42 @@ test_that("testing ista scad", {
   attr(X, "scale") <- NULL
   attr(X, "nonsingular") <- NULL
   
+  Xext <- cbind(1, X)
+  
+  startingValues <- rep(0, ncol(Xext))
+  names(startingValues) <- paste0("b", 0:(ncol(Xext)-1))
+  
   # define the tuning parameters
   lambda = seq(1,0,length.out = 5)
   
   # Now, let's fit our model with the standardized data
   scad1 <- lessLM::scadIsta(y = y, 
-                            X = X, 
+                            X = Xext, 
+                            startingValues = startingValues,
                             theta = 3, 
                             lambda = lambda)
+  
+  # iterate over multiple lambdas
+  initialHessian <- matrix(1)
+  estimates <- c()
+  for(l in lambda){
+    fit <- suppressWarnings(lessLM::penalizeGlmnet(
+      y = y,
+      X = Xext,
+      startingValues = startingValues,
+      penalty = c("none", 
+                  "scad", "scad", "scad", "scad", "scad", 
+                  "scad", "scad", "scad", "scad", "scad"),
+      lambda = l, 
+      theta = 3,
+      initialHessian = initialHessian
+    )
+    )
+    # save estimates
+    estimates <- rbind(estimates, fit$rawParameters)
+    # update Hessian for next iterations
+    initialHessian = fit$Hessian
+  }
   
   # for comparison, we use ncvreg
   scadFit <- ncvreg(X = X, 
@@ -36,5 +64,7 @@ test_that("testing ista scad", {
   
   testthat::expect_equal(all(abs(coef(scadFit) -
                                    t(scad1$B)) < 1e-4), TRUE)
+  testthat::expect_equal(all(abs(coef(scadFit) -
+                                   t(estimates)) < 1e-4), TRUE)
   
 })

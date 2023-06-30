@@ -16,8 +16,14 @@ test_that("testing glmnet", {
   # define the tuning parameters
   lambda = seq(1,0,length.out = 5)
   
+  Xext <- cbind(1, X)
+  
+  startingValues <- rep(0, ncol(Xext))
+  names(startingValues) <- paste0("b", 0:(ncol(Xext)-1))
+  
   lasso1 <- lessLM::elasticNet(y = y,
-                               X = X,
+                               X = Xext,
+                               startingValues = startingValues,
                                alpha = 1, # note: glmnet and lessSEM define 
                                # the elastic net differently (lessSEM follows lslx and regsem)
                                # Therefore, you will get different results if you change alpha
@@ -25,13 +31,38 @@ test_that("testing glmnet", {
                                lambda = lambda
   )
   
+  # iterate over multiple lambdas
+  initialHessian <- matrix(1)
+  estimates <- c()
+  for(l in lambda){
+    fit <- suppressWarnings(lessLM::penalizeGlmnet(
+      y = y,
+      X = Xext,
+      startingValues = startingValues,
+      penalty = c("none", 
+                  "lasso", "lasso", "lasso", "lasso", "lasso", 
+                  "lasso", "lasso", "lasso", "lasso", "lasso"),
+      lambda = l, 
+      theta = 0,
+      initialHessian = initialHessian
+    )
+    )
+    # save estimates
+    estimates <- rbind(estimates, fit$rawParameters)
+    # update Hessian for next iterations
+    initialHessian = fit$Hessian
+  }
+  
   # For comparison, we will fit the model with the glmnet package:
   lassoGlmnet <- glmnet(x = X, 
                         y = y, 
+                        startingValues = startingValues,
                         lambda = lambda,
                         standardize = FALSE)
   
   testthat::expect_equal(all(abs(coef(lassoGlmnet) -
-                                 t(lasso1$B)) < 1e-4), TRUE)
+                                   t(lasso1$B)) < 1e-4), TRUE)
+  testthat::expect_equal(all(abs(coef(lassoGlmnet) -
+                                   t(estimates)) < 1e-4), TRUE)
   
 })
