@@ -303,7 +303,7 @@ lasso2 <- lessLM::elasticNetIsta(y = y,
 
 # For comparison, we will fit the model with the glmnet package:
 library(glmnet)
-#> Loaded glmnet 4.1-6
+#> Loaded glmnet 4.1-7
 lassoGlmnet <- glmnet(x = X, 
                       y = y, 
                       lambda = lambda,
